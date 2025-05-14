@@ -1,182 +1,171 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Complete 3D Model Viewer</title>
+    <title>Auto-Loading 3D Viewer</title>
     <style>
-        body { 
-            margin: 0; 
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-        }
-        canvas { 
-            width: 100%; 
-            height: 100%;
-        }
-        .model-gallery {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 15px;
-            max-width: 600px;
-            z-index: 100;
-        }
-        .model-card {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 10px;
-            cursor: pointer;
-            transition: transform 0.2s, background 0.2s;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .model-card:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.15);
-        }
-        .model-card.active {
-            background: rgba(0, 255, 100, 0.2);
-            border-color: #00ff88;
-        }
-        .model-thumbnail {
-            width: 100%;
-            height: 80px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 4px;
-            margin-bottom: 8px;
-        }
-        .model-name {
+        /* ... (keep previous styles the same) ... */
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             color: white;
-            font-size: 12px;
-            text-align: center;
-            margin: 0;
+            font-size: 20px;
+            font-family: Arial;
         }
     </style>
 </head>
 <body>
-    <div class="model-gallery" id="modelGallery"></div>
-    
-    <!-- Three.js Core -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- Required Components -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TeapotBufferGeometry.js"></script>
+    <div id="loading">Loading dependencies...</div>
+    <div class="model-gallery" id="modelGallery" style="display: none;"></div>
 
     <script>
-        // 1. Scene Setup
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        
-        // Initialize Renderer
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setClearColor(0x222222);
-        document.body.appendChild(renderer.domElement);
-
-        // 2. Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(1, 1, 1);
-        scene.add(directionalLight);
-
-        // 3. Controls
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        camera.position.z = 5;
-
-        // 4. Model Templates
-        const modelTemplates = [
-            {
-                name: "Teapot",
-                create: () => new THREE.Mesh(
-                    new THREE.TeapotBufferGeometry(1),
-                    new THREE.MeshPhongMaterial({ color: 0x00ff88 })
-                )
-            },
-            {
-                name: "Torus",
-                create: () => new THREE.Mesh(
-                    new THREE.TorusGeometry(1, 0.4, 16, 100),
-                    new THREE.MeshPhongMaterial({ color: 0x88aaff })
-                )
-            },
-            {
-                name: "Sphere",
-                create: () => new THREE.Mesh(
-                    new THREE.SphereGeometry(1, 32, 32),
-                    new THREE.MeshPhongMaterial({ color: 0xff4444 })
-                )
-            },
-            {
-                name: "Cube",
-                create: () => new THREE.Mesh(
-                    new THREE.BoxGeometry(1, 1, 1),
-                    new THREE.MeshPhongMaterial({ color: 0xffff00 })
-                )
-            }
+        // Dynamically load required resources
+        const resources = [
+            'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+            'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
+            'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TeapotBufferGeometry.js'
         ];
 
-        // 5. Create Model Cards
-        const modelGallery = document.getElementById('modelGallery');
-        modelTemplates.forEach((model, index) => {
-            const card = document.createElement('div');
-            card.className = 'model-card';
-            card.innerHTML = `
-                <div class="model-thumbnail"></div>
-                <p class="model-name">${model.name}</p>
-            `;
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        async function initializeApp() {
+            try {
+                // Load all dependencies
+                await loadScript(resources[0]);
+                await loadScript(resources[1]);
+                await loadScript(resources[2]);
+
+                // Hide loading message
+                document.getElementById('loading').remove();
+
+                // Now initialize the 3D viewer
+                setupViewer();
+            } catch (error) {
+                console.error('Failed to load resources:', error);
+                document.getElementById('loading').textContent = 'Failed to load dependencies!';
+            }
+        }
+
+        function setupViewer() {
+            // Show the model gallery
+            document.getElementById('modelGallery').style.display = 'grid';
+
+            // 1. Scene Setup
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
             
-            card.addEventListener('click', () => {
-                document.querySelectorAll('.model-card').forEach(c => c.classList.remove('active'));
-                card.classList.add('active');
-                loadModel(model);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x222222);
+            document.body.appendChild(renderer.domElement);
+
+            // 2. Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+
+            // 3. Controls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            camera.position.z = 5;
+
+            // 4. Model Templates
+            const modelTemplates = [
+                {
+                    name: "Teapot",
+                    create: () => new THREE.Mesh(
+                        new THREE.TeapotBufferGeometry(1),
+                        new THREE.MeshPhongMaterial({ color: 0x00ff88 })
+                },
+                {
+                    name: "Torus",
+                    create: () => new THREE.Mesh(
+                        new THREE.TorusGeometry(1, 0.4, 16, 100),
+                        new THREE.MeshPhongMaterial({ color: 0x88aaff })
+                },
+                {
+                    name: "Sphere",
+                    create: () => new THREE.Mesh(
+                        new THREE.SphereGeometry(1, 32, 32),
+                        new THREE.MeshPhongMaterial({ color: 0xff4444 })
+                },
+                {
+                    name: "Cube",
+                    create: () => new THREE.Mesh(
+                        new THREE.BoxGeometry(1, 1, 1),
+                        new THREE.MeshPhongMaterial({ color: 0xffff00 })
+                }
+            ];
+
+            // 5. Create Model Cards
+            const modelGallery = document.getElementById('modelGallery');
+            modelTemplates.forEach((model, index) => {
+                const card = document.createElement('div');
+                card.className = 'model-card';
+                card.innerHTML = `
+                    <div class="model-thumbnail"></div>
+                    <p class="model-name">${model.name}</p>
+                `;
+                
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.model-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                    loadModel(model);
+                });
+
+                modelGallery.appendChild(card);
             });
 
-            modelGallery.appendChild(card);
-        });
-
-        // 6. Model Loading System
-        function loadModel(template) {
-            // Clear previous model
-            while(scene.children.length > 3) {
-                scene.remove(scene.children[3]);
+            // 6. Model Loading System
+            function loadModel(template) {
+                while(scene.children.length > 3) scene.remove(scene.children[3]);
+                if (template.create) {
+                    const model = template.create();
+                    scene.add(model);
+                    centerModel(model);
+                }
             }
 
-            if (template.create) {
-                const model = template.create();
-                scene.add(model);
-                centerModel(model);
+            // 7. Model Centering
+            function centerModel(model) {
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                model.position.sub(center);
+                controls.update();
             }
+
+            // 8. Window Resize Handling
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // 9. Animation Loop
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+
+            // 10. Initialization
+            loadModel(modelTemplates[0]);
+            document.querySelector('.model-card').classList.add('active');
+            animate();
         }
 
-        // 7. Model Centering
-        function centerModel(model) {
-            const box = new THREE.Box3().setFromObject(model);
-            const center = box.getCenter(new THREE.Vector3());
-            model.position.sub(center);
-            controls.update();
-        }
-
-        // 8. Window Resize Handling
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // 9. Animation Loop
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-
-        // 10. Initialization
-        loadModel(modelTemplates[0]);
-        document.querySelector('.model-card').classList.add('active');
-        animate();
+        // Start the application
+        initializeApp();
     </script>
 </body>
 </html>
